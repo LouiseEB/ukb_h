@@ -30,11 +30,10 @@ It is useful to programmatically identify all UKB-RAP field names associated wit
 system("pip install dxpy --upgrade")
 system("pip install pandas==1.3.5")
 
-install.packages(c("dplyr", "stringr", "janitor", "reactable"))
+install.packages(c("dplyr", "stringr", "reactable"))
 
 library(dplyr)
 library(stringr)
-library(janitor)
 library(reactable)
 
 ```

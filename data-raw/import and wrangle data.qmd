@@ -1,0 +1,157 @@
+---
+title: "import and wrangle data"
+format: html
+editor: visual
+---
+
+ in the terminal : dx download "table-exporter_2025-03-05_12-09-27_data.csv" "table-exporter_2025-03-06_10-37-19_data.csv" -o "cvd_obesity_diabetes_ukbrap/data-raw"
+
+system code!
+
+```{r}
+install.packages("here")
+install.packages("dplyr")
+install.packages("janitor")
+
+library(dplyr)
+
+dataset <- read.csv(here::here("cvd_obesity_diabetes_ukbrap", "data-raw", "table-exporter_2025-03-05_12-09-27_data.csv")) 
+```
+
+# Clean column names
+```{r}
+dataset <- janitor::clean_names(dataset)
+
+```
+# Look at the data structure
+
+```{r}
+dataset %>% select(starts_with("diagnoses_icd10"), starts_with("date_of_first_in_patient_diagnosis_icd10")) %>% head()
+```
+
+# Function to split icd and operative procedure columns
+```{r}
+split_icd_columns <- function(data, icd_col_name) {
+    max_instances <- data[[icd_col_name]] %>%
+        replace_na("") %>%
+        str_count("\\|") %>%  # Count the number of pipes
+        max(na.rm = TRUE) + 1  # Get the max number of splits plus 1
+
+    # Perform the separation based on the pipe operator
+    data <- data %>%
+        separate(
+            icd_col_name,
+            into = paste0(icd_col_name, "_array_", 0:(max_instances - 1)),
+            sep = "\\|",
+            fill = "right"
+        )
+
+    return(data)
+}
+
+```
+
+
+# Apply the function to both ICD10 and ICD9 columns
+
+```{r}
+dataset <- dataset %>%
+    split_icd_columns("diagnoses_icd10") %>%
+    split_icd_columns("diagnoses_icd9") %>%
+    split_icd_columns("operative_procedures_opcs4") %>%
+    split_icd_columns("operative_procedures_opcs3")
+```
+# Look at the data structure again
+
+# Specify your ICD10 codes:
+
+```{r}
+icd10_codes <- c("DE10.5", "DE11.5", "DE13.5", "DE14.5", "DG45.0", "DG45.1", "DG45.3", "DG45.4", "DG45.8", "DG45.9", "DI20", "DI21",
+                 "DI22.0", "DI22.1", "DI22.9", "DI23", "DI24.0", "DI24.1", "DI24.8", "DI24.9", "DI25", "DI60", "DI64.9", "DI64.9", "DI69.3",
+                 "DI69.4", "DI69.8", "DI70.2", "DI70.2A", "DI73.9", "DI979B", "DI979E", "E10.5", "E11.5", "E13.5", "E14.5", "I20.0",
+                 "I20.9", "I21.0", "I21.1", "I21.2", "I21.3", "I21.4", "I21.9", "I24.8", "I24.9", "I25.0", "I25.1", "I25.5", "I25.8",
+                 "I25.9", "I60.6", "I60.9", "I63.4", "I63.6", "I63.8", "I63.9", "I64", "I70.2")
+
+icd10_codes <-  str_replace(icd10_codes, "^D", "")
+
+```
+
+# Translate into ICD9 codes
+
+```{r}
+icd10to9 <- read.csv(here::here("cvd_obesity_diabetes_ukbrap", "data/icd10toicd9.csv"), quote = "") %>%
+  mutate(across(everything(), ~ str_replace_all(., '"', ''))) %>%
+  select(icd10 = X.icd10cm, icd9 = X..icd9cm..) %>%
+  mutate(icd10 = str_replace(icd10, "(\\d{2})(\\D.*)", "\\1.\\2"),
+         icd10 = str_replace(icd10, "(\\d{2})(\\d.*)", "\\1.\\2"))
+
+icd9_codes <- icd10to9 %>%
+  filter(icd10 %in% icd10_codes) %>%
+  pull(icd9)
+```
+
+# Specify operative procedure codes
+
+```{r}
+opcs4_codes <- c("K40", "K41", "K42", "K43", "K44", "K45", "K46", "K48", "K49", "K50", "K75")
+```
+
+# Function to process codes
+
+```{r}
+process_codes <- function(codes = icd10_codes, prefix ="diagnoses_icd10", date_prefix = "date_of_first_in_patient_diagnosis_icd10", row_range) {
+  
+  dataset[row_range, ] %>%
+    select(participant_id, starts_with(prefix), starts_with(date_prefix)) %>%
+    pivot_longer(
+      cols = -participant_id,
+      names_to = c(".value", "array_index"),
+      names_pattern = "(.*)_array_(\\d+)"
+    ) %>% filter(!is.na(!!sym(prefix)), !!sym(prefix) != "") %>% 
+    filter(!is.na(!!sym(prefix)), !!sym(prefix) != "") %>%
+    mutate(ascvd = case_when(
+      map_lgl(!!sym(prefix), ~ any(str_starts(.x, codes))) ~ 1,  # Check if any code matches
+      TRUE ~ 0
+    )) %>% 
+    filter(ascvd == 1) %>% 
+    rename(
+      dia_proc = !!sym(prefix),  # Rename diagnoses_icd10 to diagnoses_procedures
+      date = !!sym(paste0(date_prefix))     # Rename date columns to 'date'
+    )
+  
+}
+```
+
+# Batch process
+
+```{r}
+
+icd10_batch1 <- process_codes(codes = icd10_codes, prefix = "diagnoses_icd10", row_range = 1:200000)
+
+icd10_batch2 <- process_codes(codes = icd10_codes, prefix = "diagnoses_icd10", row_range = 200001:400000)
+
+icd10_batch3 <- process_codes(codes = icd10_codes, prefix = "diagnoses_icd10", row_range = 400001:502129)
+
+icd9_batch1 <- process_codes(codes = icd9_codes, prefix = "diagnoses_icd9", row_range = 1:502129) 
+
+opcs4_batch1 <- process_codes(codes = opcs4_codes, prefix = "operative_procedures_opcs4", row_range = 1:502129 )
+
+```
+
+# Create diagnosis
+
+```{r}
+ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, opcs4_batch1) %>%
+  group_by(participant_id) %>%
+  arrange(date) %>%  # Ensure data is sorted by date for each participant
+  slice_head(n = 1) %>%  # Keep only the first row per participant (earliest date)
+  ungroup() %>%
+  mutate(
+    ascvd_source = dia_proc,  # Set ascvd_source to the diagnosis/procedure for the earliest date
+    ascvd = 1  # Set ascvd to 1 for all these rows
+  ) %>%
+  arrange(participant_id)  # Final sorting by participant_id
+
+write_csv(ascvd_col, "cvd_obesity_diabetes_ukbrap/data/ascvd_col.csv"
+```
+
