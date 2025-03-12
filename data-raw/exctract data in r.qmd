@@ -5,6 +5,12 @@ output: html_notebook
 
 # Overview
 
+The following has been written with inspiration from:
+
+https://github.com/UK-Biobank/UKB-RAP-Notebooks-Access/blob/main/RStudio/A110_Export_participant_data.Rmd
+
+https://github.com/dnanexus/UKB_RAP/blob/main/pheno_data/03-dx_extract_dataset_R.ipynb
+
 The Table Exporter tool takes a list of UKB-RAP field names and outputs a csv containing these to your project space. UKB-RAP field names in the main (participant) entity take the format:
 
 **p** *field_id* **i** *ins_index* **a** *arr_index*
@@ -24,22 +30,13 @@ It is useful to programmatically identify all UKB-RAP field names associated wit
 system("pip install dxpy --upgrade")
 system("pip install pandas==1.3.5")
 
-# pkg <- c("tidyverse", "reactable") #maybe dplyr stringr readr
+install.packages(c("dplyr", "stringr", "janitor", "reactable"))
 
-# Check if packages are not installed and assign the
-# names of the packages not installed to the variable new.pkg
-# new.pkg <- pkg[!(pkg %in% installed.packages())]
-# If there are any packages in the list that aren't installed,
-# install them
-# if (length(new.pkg)) {
-#   install.packages(new.pkg, repos = "http://cran.rstudio.com")
-# }
+library(dplyr)
+library(stringr)
+library(janitor)
+library(reactable)
 
-
-
-
-# library(tidyverse)
-# library(reactable)
 ```
 
 # Get the Dataset Dictionary
@@ -71,9 +68,6 @@ The data dictionary file is read in below. This file is automatically named usin
 
 datadict <- read.csv(paste0(dataset$prefix,".data_dictionary.csv"))
 
-# data_dict_df <- datadict %>%
-#     relocate(name, title) %>%
-#     mutate(ent_field = glue::glue("{entity}.{name}"))
 
 basic_datadict <- datadict |>
                     select(title, name, entity,  coding_name)
@@ -84,53 +78,51 @@ reactable::reactable(basic_datadict, searchable = TRUE)
 
 # Select variables to extract
 
-Variables to extract can be found in the above searchable table and in the [UK Biobank Showcase](#0) or the cohort browser on DNAnexus. Once you find a variable of interest, paste the name in the code block below. grepl() matches the provided string in the selected column by regex. This means that if you write ("Sex", title) you get all columns matching that string in the title column and if you only want the actual Sex column, you instead write "Sex\$", grepl() is case sensitive with the option to add ignore.case = TRUE as an argument. If you want a specific column from the main data, it is preferable to match the field name from the name column, for example 41270 for Diagnoses ICD10.
+Variables to extract can be found in the above searchable table and in the [UK Biobank Showcase](#0) or the cohort browser on DNAnexus. Once you find a variable of interest, paste the name in the code block below. str_detect() matches the provided string in the selected column by regex. This means that if you write ("Sex", title) you get all columns matching that string in the title column and if you only want the actual Sex column, you instead write "Sex\$", str_detect() is case sensitive with the option to add (?i) as a prefix in the pattern (example: str_detect(title, "(?i)Age at recruitment"). If you want a specific column from the main data, it is preferable to match the field name from the name column, for example 41270 for Diagnoses ICD10.
 
 ```{r}
-# filtered_dict <- datadict %>%
-#    filter(grepl("Age at recruitment", title) |
-#            grepl("^Sex$", title) | 
-#            grepl("Reason lost to follow-up", title) | 
-#            grepl("Date lost to follow-up", title) | 
-#            grepl("Date of attending assessment centre", title) | 
-#            grepl("Qualifications", title) |
-#            grepl("Ethnic background", title) |
-#            grepl("IPAQ", title) |
-#            grepl("Medication for cholesterol", title) |
-#            grepl("Waist circumference", title) |
-#            grepl("^Weight$", title) |
-#            grepl("Standing height", title) |
-#            grepl("Body mass index", title) |
-#            grepl("Hip circumference", title) |
-#            grepl("^C-reactive protein$", title) |
-#            grepl("^Cholesterol \\| Instance\\s*\\d*$", title) |
-#            grepl("^HDL cholesterol \\| Instance\\s*\\d*$", title) |
-#            grepl("^Glucose \\| Instance\\s*\\d*$", title) |
-#            grepl("^Glycated haemoglobin \\| Instance\\s*\\d*$", title) |
-#            grepl("^LDL direct \\| Instance\\s*\\d*$", title) |
-#            grepl("^Lipoprotein A \\| Instance\\s*\\d*$", title) |
-#            grepl("^Triglycerides \\| Instance\\s*\\d*$", title) |
-#            grepl("main ICD10", title) |
-#            grepl("main ICD9", title) |
-#            # grepl("Date of death", title) |
-#            grepl("Underlying (primary) cause of death", title) |
-#            grepl("Contributory (secondary) cause of death", title)|
-#           grepl("Operative procedures - main OPCS4", title) |
-#           grepl("Operative procedures - main OPCS3", title)
+filtered_dict <- datadict %>%
+  filter(
+    str_detect(title, "Age at recruitment") |
+      str_detect(title, "^Sex$") |
+      str_detect(title, "Reason lost to follow-up") |
+      str_detect(title, "Date lost to follow-up") |
+      str_detect(title, "Date of attending assessment centre") |
+      str_detect(title, "IPAQ") |
+      str_detect(title, "Medication for cholesterol") |
+      str_detect(title, "Body mass index") |
+      str_detect(title, "^C-reactive protein$") |
+      str_detect(title, "^Cholesterol \\| Instance\\s*\\d*$") |
+      str_detect(title, "^HDL cholesterol \\| Instance\\s*\\d*$") |
+      str_detect(title, "^Glucose \\| Instance\\s*\\d*$") |
+      str_detect(title, "^Glycated haemoglobin \\| Instance\\s*\\d*$") |
+      str_detect(title, "^LDL direct \\| Instance\\s*\\d*$") |
+      str_detect(title, "^Lipoprotein A \\| Instance\\s*\\d*$") |
+      str_detect(title, "^Triglycerides \\| Instance\\s*\\d*$") |
+      str_detect(title, "Underlying (primary) cause of death") |
+      str_detect(title, "Contributory (secondary) cause of death") |
+      str_detect(name, "p41270") | #Diagnoses icd10
+      str_detect(name, "p41271") | #Diagnoses icd9
+      str_detect(name, "p41280") | #Date of first in-patient diagnosis icd10
+      str_detect(name, "p41281") | #Date of first in-patient diagnosis icd9
+      str_detect(name, "p41272") | #Operative procedures OPCS4
+      str_detect(name, "p41282") | #Date of operative procedures OPCS4
+      str_detect(name, "p41273") | #Operative procedures OPCS3
+      str_detect(name, "p41283") #Date of operative procedures OPCS3
+  )  %>% arrange(title)
+
+# filtered_dict2 <- datadict %>%
+#    filter(
+#      str_detect(name, "p41270") | #Diagnoses icd10
+#        str_detect(name, "p41271") | #Diagnoses icd9
+#        str_detect(name, "p41280") | #Date of first in-patient diagnosis icd10
+#        str_detect(name, "p41281") | #Date of first in-patient diagnosis icd9
+#        str_detect(name, "p41272") | #Operative procedures OPCS4
+#        str_detect(name, "p41282") | #Date of operative procedures OPCS4
+#        str_detect(name, "p41273") | #Operative procedures OPCS3
+#        str_detect(name, "p41283") #Date of operative procedures OPCS3
+# 
 #           )  %>% arrange(title)
-
-filtered_dict <- data_dict_df %>%
-   filter(
-     grepl("p41270", name) | #Diagnoses icd10
-       grepl("p41271", name) | #Diagnoses icd9
-       grepl("p41280", name) | #Date of first in-patient diagnosis icd10
-       grepl("p41281", name) | #Date of first in-patient diagnosis icd9
-       grepl("p41272", name) | #Operative procedures OPCS4
-       grepl("p41282", name) | #Date of operative procedures OPCS4
-       grepl("p41273", name) | #Operative procedures OPCS3
-       grepl("p41283", name) #Date of operative procedures OPCS3
-
-          )  %>% arrange(title)
 
 field_list <- filtered_dict %>%
     pull(name)
