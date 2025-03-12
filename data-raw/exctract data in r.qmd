@@ -1,0 +1,187 @@
+---
+title: "Extracting fields for use in Table Exporter"
+output: html_notebook
+---
+
+# Overview
+
+The Table Exporter tool takes a list of UKB-RAP field names and outputs a csv containing these to your project space. UKB-RAP field names in the main (participant) entity take the format:
+
+**p** *field_id* **i** *ins_index* **a** *arr_index*
+
+where field_id is the UK Biobank [field ID](https://biobank.ndph.ox.ac.uk/showcase/browse.cgi), ins_index is the [instance index](https://biobank.ndph.ox.ac.uk/showcase/help.cgi?cd=instances) and arr_index is the [array index](https://biobank.ndph.ox.ac.uk/showcase/help.cgi?cd=array). For more information, see [UK Biobank Data on the Research Analysis Platform](https://dnanexus.gitbook.io/uk-biobank-rap/getting-started/working-with-ukb-data).
+
+It is useful to programmatically identify all UKB-RAP field names associated with UK Biobank fields, especially if the field has many arrays or many fields are required. This notebook helps to generate a file that can be used as an input to Table Exporter.
+
+# Requirements
+
+-   Start an RStudio session in DNAnexus
+
+# Set Up Required Packages
+
+```{r setup}
+
+system("pip install dxpy --upgrade")
+system("pip install pandas==1.3.5")
+
+pkg <- c("tidyverse", "reactable")
+
+# Check if packages are not installed and assign the
+# names of the packages not installed to the variable new.pkg
+new.pkg <- pkg[!(pkg %in% installed.packages())]
+# If there are any packages in the list that aren't installed,
+# install them
+if (length(new.pkg)) {
+  install.packages(new.pkg, repos = "http://cran.rstudio.com")
+}
+
+
+
+
+# library(tidyverse)
+# library(reactable)
+```
+
+# Get the Dataset Dictionary
+
+The UKB-RAP column names can be found in the dataset dictionary, which is accessed via the [command line utility](https://documentation.dnanexus.com/user/helpstrings-of-sdk-command-line-utilities) dx extract_dataset. To use this utility, it is necessary to find the dataset ID and dataset prefix for your dispensed data, for which a function is provided below.
+
+```{r}
+
+get_dataset_id <- function() {
+    project <- Sys.getenv("DX_PROJECT_CONTEXT_ID")
+    record <- system("dx find data --type Dataset --delimiter ',' | awk -F ',' '{print $5}'", intern = TRUE)
+    dataset <- list()
+    dataset$id <- paste0(project, ":", record)
+    dataset$prefix <- stringr::str_sub(system("dx find data --type Dataset --delimiter ',' | awk -F ',' '{print $4}'", intern = TRUE), 2)
+    return(dataset)
+}
+
+dataset <- get_dataset_id()
+
+if (!file.exists(paste0(dataset$prefix, '.data_dictionary.csv'))) {
+  system(paste0("dx extract_dataset ", dataset$id, " -ddd"), intern = TRUE)
+}
+
+```
+
+The data dictionary file is read in below. This file is automatically named using a prefix unique to your dataset, which is found using the above function. reactable() creates a searchable table to identify columns to extract.
+
+```{r}
+
+datadict <- read.csv(paste0(dataset$prefix,".data_dictionary.csv"))
+
+# data_dict_df <- datadict %>%
+#     relocate(name, title) %>%
+#     mutate(ent_field = glue::glue("{entity}.{name}"))
+
+basic_datadict <- datadict |>
+                    select(title, name, entity,  coding_name)
+
+reactable::reactable(basic_datadict, searchable = TRUE)
+
+```
+
+# Select variables to extract
+
+Variables to extract can be found in the above searchable table and in the [UK Biobank Showcase](#0) or the cohort browser on DNAnexus. Once you find a variable of interest, paste the name in the code block below. grepl() matches the provided string in the selected column by regex. This means that if you write ("Sex", title) you get all columns matching that string in the title column and if you only want the actual Sex column, you instead write "Sex\$", grepl() is case sensitive with the option to add ignore.case = TRUE as an argument. If you want a specific column from the main data, it is preferable to match the field name from the name column, for example 41270 for Diagnoses ICD10.
+
+```{r}
+# filtered_dict <- datadict %>%
+#    filter(grepl("Age at recruitment", title) |
+#            grepl("^Sex$", title) | 
+#            grepl("Reason lost to follow-up", title) | 
+#            grepl("Date lost to follow-up", title) | 
+#            grepl("Date of attending assessment centre", title) | 
+#            grepl("Qualifications", title) |
+#            grepl("Ethnic background", title) |
+#            grepl("IPAQ", title) |
+#            grepl("Medication for cholesterol", title) |
+#            grepl("Waist circumference", title) |
+#            grepl("^Weight$", title) |
+#            grepl("Standing height", title) |
+#            grepl("Body mass index", title) |
+#            grepl("Hip circumference", title) |
+#            grepl("^C-reactive protein$", title) |
+#            grepl("^Cholesterol \\| Instance\\s*\\d*$", title) |
+#            grepl("^HDL cholesterol \\| Instance\\s*\\d*$", title) |
+#            grepl("^Glucose \\| Instance\\s*\\d*$", title) |
+#            grepl("^Glycated haemoglobin \\| Instance\\s*\\d*$", title) |
+#            grepl("^LDL direct \\| Instance\\s*\\d*$", title) |
+#            grepl("^Lipoprotein A \\| Instance\\s*\\d*$", title) |
+#            grepl("^Triglycerides \\| Instance\\s*\\d*$", title) |
+#            grepl("main ICD10", title) |
+#            grepl("main ICD9", title) |
+#            # grepl("Date of death", title) |
+#            grepl("Underlying (primary) cause of death", title) |
+#            grepl("Contributory (secondary) cause of death", title)|
+#           grepl("Operative procedures - main OPCS4", title) |
+#           grepl("Operative procedures - main OPCS3", title)
+#           )  %>% arrange(title)
+
+filtered_dict <- data_dict_df %>%
+   filter(
+     grepl("p41270", name) | #Diagnoses icd10
+       grepl("p41271", name) | #Diagnoses icd9
+       grepl("p41280", name) | #Date of first in-patient diagnosis icd10
+       grepl("p41281", name) | #Date of first in-patient diagnosis icd9
+       grepl("p41272", name) | #Operative procedures OPCS4
+       grepl("p41282", name) | #Date of operative procedures OPCS4
+       grepl("p41273", name) | #Operative procedures OPCS3
+       grepl("p41283", name) #Date of operative procedures OPCS3
+
+          )  %>% arrange(title)
+
+field_list <- filtered_dict %>%
+    pull(name)
+
+field_list <- c("eid", field_list)
+
+```
+
+# Create and save the field_names file for TableExporter
+
+The file_name variable will be used as a prefix for the files generated in this notebook. By default, this will be set as "table-exporter\_*Current Date*".
+
+```{r}
+#The name will be in the format "table-exporter_YYYY-MM-DD_HH-MM-SS".
+#If you want to customize the file name, you can modify the 'file_name' variable.
+ file_name <- sprintf("table-exporter_%s", format(Sys.time(), "%Y-%m-%d_%H-%M-%S"))
+ 
+```
+
+The field_list is then written as a file with one column name on each line, which is the necessary format for input to TableExporter.
+
+```{r}
+write.table(field_list, paste0(file_name, '_fields.txt'), row.names = F, col.names = F, quote = F)
+```
+
+# Upload File to Project
+
+The file is uploaded to the project for use with the Table Exporter App.
+
+```{r}
+
+file_upload <- system(paste0('dx upload ', file_name, '_fields.txt'), intern = TRUE)
+
+```
+
+# Run Table Exporter
+
+[Table Exporter](https://ukbiobank.dnanexus.com/app/table-exporter) can be run in the below code block. This will result in a file called '<file_name>\_data.csv' in your project space, with all columns of data in the selected categories included, and encoded values replaced with their meanings. Note that this starts a separate job in your project. You can track this on the Monitor page. You do not need to keep RStudio open while the Table Exporter job is running - you can terminate the session.
+
+Once the job is done and your file is saved in your project space, the **A111_Import_Analyse_participant_data.Rmd** notebook gives an overview on uploading your data into an RStudio session and useful tips on running the session.
+
+The parameter "header_style" is set to FIELD-TITLE to change the column names to the name of the field as show in the cohort browser. The default option is FIELD-NAME. All other options are kept as default.
+
+```{r}
+
+file_id <- stringr::str_extract(file_upload[[1]], 'file.*')
+
+system(paste0("dx run table-exporter -idataset_or_cohort_or_dashboard=", dataset$id, " -ifield_names_file_txt=", file_id, " -ientity=participant -ioutput=", file_name, "_data", " -iheader_style=FIELD-TITLE"), intern = TRUE)  
+
+```
+
+Table Exporter can also be run manually from the tools library. Instructions on using Table Exporter interactively can be found at [Table Exporter](https://ukbiobank.dnanexus.com/app/table-exporter).
+
+**Troubleshooting:** If your table exporter job fails with an out of memory error, increase the instance size the job is running on by adding the --instance-type flag with a larger instance, or adjust the instance type when running from the tools library following [these instructions](https://documentation.dnanexus.com/getting-started/key-concepts/apps-and-workflows#configure-runtime-settings).
