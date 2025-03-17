@@ -9,13 +9,7 @@ editor: visual
 Before running this, wipe your environment clean with the broom to the right. Find the name of your exported file on DNAnexus in your project.
 
 ```{r}
-install.packages("here")
-install.packages("dplyr")
-install.packages("tidyr")
-install.packages("purrr")
-install.packages("stringr")
-install.packages("lubridate")
-install.packages("janitor")
+install.packages("here", "dplyr", "tidyr", "purrr", "stringr", "lubridate", "janitor")
 
 library(dplyr)
 library(tidyr)
@@ -25,7 +19,7 @@ library(stringr)
 
 system("dx download table-exporter_2025-03-17_09-32-33_data.csv", intern = TRUE) 
 
-dataset <- read.csv(here::here("ukb_h", "data-raw", "table-exporter_2025-03-17_09-32-33_data.csv")) 
+dataset <- read.csv(here::here("table-exporter_2025-03-17_09-32-33_data.csv"))
 ```
 
 # Clean column names
@@ -91,9 +85,10 @@ icd10_codes <-  str_replace(icd10_codes, "^D", "")
 
 # Translate into ICD9 codes
 
+Using a table found on <https://www.nber.org/research/data/icd-9-cm-and-icd-10-cm-and-icd-10-pcs-crosswalk-or-general-equivalence-mappings>
+
 ```{r}
-# icd10to9 <- read.csv(here::here("ukb_h", "data/icd10toicd9.csv"), quote = "") %>%
-icd10to9 <- read.csv(here::here("https://data.nber.org/gem/icd10cmtoicd9gem.csv"), quote = "") %>%
+icd10to9 <- read.csv("https://data.nber.org/gem/icd10cmtoicd9gem.csv") %>%
  mutate(across(everything(), ~ str_replace_all(., '"', ''))) %>%
   select(icd10 = X.icd10cm, icd9 = X..icd9cm..) %>%
   mutate(icd10 = str_replace(icd10, "(\\d{2})(\\D.*)", "\\1.\\2"),
@@ -155,9 +150,7 @@ opcs4_batch1 <- process_codes(codes = opcs4_codes, prefix = "operative_procedure
 # Create diagnosis
 
 ```{r}
-# ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, opcs4_batch1) %>%
-  ascvd_col <- 
-  icd10_batch1 %>% 
+ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, opcs4_batch1) %>%
   group_by(participant_id) %>%
   arrange(date) %>%  # Ensure data is sorted by date for each participant
   slice_head(n = 1) %>%  # Keep only the first row per participant (earliest date)
@@ -178,7 +171,6 @@ dx upload ascvd_col maybe not necessary
 # Join ascvd_col to the main data and fill in the missing information
 
 ```{r}
-# ascvd_data <- read.csv(here::here("cvd_obesity_diabetes_ukbrap/data-raw/ascvd_col.csv")) %>% 
 
 ascvd_col <- ascvd_col %>% 
   mutate(date = lubridate::as_date(date)) %>% 
