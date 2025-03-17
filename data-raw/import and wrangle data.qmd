@@ -177,7 +177,10 @@ ascvd_col <- ascvd_col %>%
   rename(ascvd_date =date,
          ascvd_array_index = array_index,
          ascvd_dia_proc = dia_proc)
+```
 
+Censoring date set to 2022-05-31:
+```{r}
 
 dataset_ascvd <- dataset %>% 
   select(-starts_with("diagnoses"), -starts_with("date_of_first"), -starts_with("operative_procedures")) %>%
@@ -185,6 +188,7 @@ dataset_ascvd <- dataset %>%
   mutate(date_lost_to_follow_up = lubridate::as_date(date_lost_to_follow_up),
     ascvd = case_when(
     is.na(ascvd) ~ 0,
+    ascvd_date > as_date("2022-05-31") ~ 0,
     TRUE ~ ascvd),
     ascvd_date = case_when(
       ascvd==0 ~ lubridate::as_date("2022-05-31"),
@@ -193,6 +197,7 @@ dataset_ascvd <- dataset %>%
     ),
     ascvd_date = case_when(
       date_lost_to_follow_up < ascvd_date ~ date_lost_to_follow_up,
+      ascvd_date > as_date("2022-05-31") ~ as_date("2022-05-31"),
       TRUE ~ ascvd_date
     )
   )
