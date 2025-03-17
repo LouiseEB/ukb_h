@@ -4,18 +4,28 @@ format: html
 editor: visual
 ---
 
-in the terminal : dx download "table-exporter_2025-03-05_12-09-27_data.csv" "table-exporter_2025-03-06_10-37-19_data.csv" -o "cvd_obesity_diabetes_ukbrap/data-raw"
+# Setup and download data from DNAnexus
 
-system code!
+Before running this, wipe your environment clean with the broom to the right. Find the name of your exported file on DNAnexus in your project.
 
 ```{r}
 install.packages("here")
 install.packages("dplyr")
+install.packages("tidyr")
+install.packages("purrr")
+install.packages("stringr")
+install.packages("lubridate")
 install.packages("janitor")
 
 library(dplyr)
+library(tidyr)
+library(purrr)
+library(lubridate)
+library(stringr)
 
-dataset <- read.csv(here::here("cvd_obesity_diabetes_ukbrap", "data-raw", "table-exporter_2025-03-05_12-09-27_data.csv")) 
+system("dx download table-exporter_2025-03-17_09-32-33_data.csv", intern = TRUE) 
+
+dataset <- read.csv(here::here("ukb_h", "data-raw", "table-exporter_2025-03-17_09-32-33_data.csv")) 
 ```
 
 # Clean column names
@@ -82,8 +92,9 @@ icd10_codes <-  str_replace(icd10_codes, "^D", "")
 # Translate into ICD9 codes
 
 ```{r}
-icd10to9 <- read.csv(here::here("cvd_obesity_diabetes_ukbrap", "data/icd10toicd9.csv"), quote = "") %>%
-  mutate(across(everything(), ~ str_replace_all(., '"', ''))) %>%
+# icd10to9 <- read.csv(here::here("ukb_h", "data/icd10toicd9.csv"), quote = "") %>%
+icd10to9 <- read.csv(here::here("https://data.nber.org/gem/icd10cmtoicd9gem.csv"), quote = "") %>%
+ mutate(across(everything(), ~ str_replace_all(., '"', ''))) %>%
   select(icd10 = X.icd10cm, icd9 = X..icd9cm..) %>%
   mutate(icd10 = str_replace(icd10, "(\\d{2})(\\D.*)", "\\1.\\2"),
          icd10 = str_replace(icd10, "(\\d{2})(\\d.*)", "\\1.\\2"))
@@ -144,7 +155,9 @@ opcs4_batch1 <- process_codes(codes = opcs4_codes, prefix = "operative_procedure
 # Create diagnosis
 
 ```{r}
-ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, opcs4_batch1) %>%
+# ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, opcs4_batch1) %>%
+  ascvd_col <- 
+  icd10_batch1 %>% 
   group_by(participant_id) %>%
   arrange(date) %>%  # Ensure data is sorted by date for each participant
   slice_head(n = 1) %>%  # Keep only the first row per participant (earliest date)
@@ -168,7 +181,7 @@ dx upload ascvd_col maybe not necessary
 # ascvd_data <- read.csv(here::here("cvd_obesity_diabetes_ukbrap/data-raw/ascvd_col.csv")) %>% 
 
 ascvd_col <- ascvd_col %>% 
-  mutate(date = as_date(date)) %>% 
+  mutate(date = lubridate::as_date(date)) %>% 
   rename(ascvd_date =date,
          ascvd_array_index = array_index,
          ascvd_dia_proc = dia_proc)
@@ -176,13 +189,13 @@ ascvd_col <- ascvd_col %>%
 
 dataset_ascvd <- dataset %>% 
   select(-starts_with("diagnoses"), -starts_with("date_of_first"), -starts_with("operative_procedures")) %>%
-  left_join(ascvd_data) %>% 
-  mutate(date_lost_to_follow_up = as_date(date_lost_to_follow_up),
+  left_join(ascvd_col) %>% 
+  mutate(date_lost_to_follow_up = lubridate::as_date(date_lost_to_follow_up),
     ascvd = case_when(
     is.na(ascvd) ~ 0,
     TRUE ~ ascvd),
     ascvd_date = case_when(
-      ascvd==0 ~ as_date("2022-05-31"),
+      ascvd==0 ~ lubridate::as_date("2022-05-31"),
       is.na(ascvd_date) & ascvd == 1 ~ NA,
       TRUE ~ ascvd_date
     ),
