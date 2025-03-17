@@ -155,5 +155,40 @@ ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, op
   ) %>%
   arrange(participant_id)  # Final sorting by participant_id
 
-write_csv(ascvd_col, "cvd_obesity_diabetes_ukbrap/data/ascvd_col.csv")
+# write_csv(ascvd_col, "cvd_obesity_diabetes_ukbrap/data/ascvd_col.csv")
+```
+
+# Upload to DNAnexus
+
+dx upload ascvd_col maybe not necessary
+
+# Join ascvd_col to the main data and fill in the missing information
+
+```{r}
+# ascvd_data <- read.csv(here::here("cvd_obesity_diabetes_ukbrap/data-raw/ascvd_col.csv")) %>% 
+
+ascvd_col <- ascvd_col %>% 
+  mutate(date = as_date(date)) %>% 
+  rename(ascvd_date =date,
+         ascvd_array_index = array_index,
+         ascvd_dia_proc = dia_proc)
+
+
+dataset_ascvd <- dataset %>% 
+  select(-starts_with("diagnoses"), -starts_with("date_of_first"), -starts_with("operative_procedures")) %>%
+  left_join(ascvd_data) %>% 
+  mutate(date_lost_to_follow_up = as_date(date_lost_to_follow_up),
+    ascvd = case_when(
+    is.na(ascvd) ~ 0,
+    TRUE ~ ascvd),
+    ascvd_date = case_when(
+      ascvd==0 ~ as_date("2022-05-31"),
+      is.na(ascvd_date) & ascvd == 1 ~ NA,
+      TRUE ~ ascvd_date
+    ),
+    ascvd_date = case_when(
+      date_lost_to_follow_up < ascvd_date ~ date_lost_to_follow_up,
+      TRUE ~ ascvd_date
+    )
+  )
 ```

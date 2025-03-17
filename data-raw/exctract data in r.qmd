@@ -11,13 +11,17 @@ https://github.com/UK-Biobank/UKB-RAP-Notebooks-Access/blob/main/RStudio/A110_Ex
 
 https://github.com/dnanexus/UKB_RAP/blob/main/pheno_data/03-dx_extract_dataset_R.ipynb
 
+This is a guide to extract data from a dispensed dataset on DNAnexus.
+
+Variable selection and creation of a list of field names is done in R and the data is then exported in TableExporter directly from Rstudio.
+
 The Table Exporter tool takes a list of UKB-RAP field names and outputs a csv containing these to your project space. UKB-RAP field names in the main (participant) entity take the format:
 
 **p** *field_id* **i** *ins_index* **a** *arr_index*
 
 where field_id is the UK Biobank [field ID](https://biobank.ndph.ox.ac.uk/showcase/browse.cgi), ins_index is the [instance index](https://biobank.ndph.ox.ac.uk/showcase/help.cgi?cd=instances) and arr_index is the [array index](https://biobank.ndph.ox.ac.uk/showcase/help.cgi?cd=array). For more information, see [UK Biobank Data on the Research Analysis Platform](https://dnanexus.gitbook.io/uk-biobank-rap/getting-started/working-with-ukb-data).
 
-It is useful to programmatically identify all UKB-RAP field names associated with UK Biobank fields, especially if the field has many arrays or many fields are required. This notebook helps to generate a file that can be used as an input to Table Exporter.
+It is useful to programmatically identify all UKB-RAP field names associated with UK Biobank fields, especially if the field has many arrays or many fields are required.
 
 # Requirements
 
@@ -77,7 +81,7 @@ reactable::reactable(basic_datadict, searchable = TRUE)
 
 # Select variables to extract
 
-Variables to extract can be found in the above searchable table and in the [UK Biobank Showcase](#0) or the cohort browser on DNAnexus. Once you find a variable of interest, paste the name in the code block below. str_detect() matches the provided string in the selected column by regex. This means that if you write ("Sex", title) you get all columns matching that string in the title column and if you only want the actual Sex column, you instead write "Sex\$", str_detect() is case sensitive with the option to add (?i) as a prefix in the pattern (example: str_detect(title, "(?i)Age at recruitment"). If you want a specific column from the main data, it is preferable to match the field name from the name column, for example 41270 for Diagnoses ICD10.
+Variables to extract can be found in the above searchable table and in the [UK Biobank Showcase](#0) or the cohort browser on DNAnexus. Once you find a variable of interest, paste the name in the code block below. str_detect() matches the provided string in the selected column by regex. This means that if you write ("Sex", title) you get all columns matching that string in the title column and if you only want the actual Sex column, you instead write "Sex\$". str_detect() is case sensitive with the option to add (?i) as a prefix in the pattern (example: str_detect(title, "(?i)Age at recruitment"). If you want a specific column from the main data, it is preferable to match the field name from the name column, for example 41270 for Diagnoses ICD10.
 
 ```{r}
 filtered_dict <- datadict %>%
