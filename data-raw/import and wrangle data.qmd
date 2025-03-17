@@ -4,7 +4,7 @@ format: html
 editor: visual
 ---
 
- in the terminal : dx download "table-exporter_2025-03-05_12-09-27_data.csv" "table-exporter_2025-03-06_10-37-19_data.csv" -o "cvd_obesity_diabetes_ukbrap/data-raw"
+in the terminal : dx download "table-exporter_2025-03-05_12-09-27_data.csv" "table-exporter_2025-03-06_10-37-19_data.csv" -o "cvd_obesity_diabetes_ukbrap/data-raw"
 
 system code!
 
@@ -19,10 +19,12 @@ dataset <- read.csv(here::here("cvd_obesity_diabetes_ukbrap", "data-raw", "table
 ```
 
 # Clean column names
+
 ```{r}
 dataset <- janitor::clean_names(dataset)
 
 ```
+
 # Look at the data structure
 
 ```{r}
@@ -30,8 +32,9 @@ dataset %>% select(starts_with("diagnoses_icd10"), starts_with("date_of_first_in
 ```
 
 # Function to split icd and operative procedure columns
+
 ```{r}
-split_icd_columns <- function(data, icd_col_name) {
+split_columns <- function(data, icd_col_name) {
     max_instances <- data[[icd_col_name]] %>%
         replace_na("") %>%
         str_count("\\|") %>%  # Count the number of pipes
@@ -51,16 +54,16 @@ split_icd_columns <- function(data, icd_col_name) {
 
 ```
 
-
 # Apply the function to both ICD10 and ICD9 columns
 
 ```{r}
 dataset <- dataset %>%
-    split_icd_columns("diagnoses_icd10") %>%
-    split_icd_columns("diagnoses_icd9") %>%
-    split_icd_columns("operative_procedures_opcs4") %>%
-    split_icd_columns("operative_procedures_opcs3")
+    split_columns("diagnoses_icd10") %>%
+    split_columns("diagnoses_icd9") %>%
+    split_columns("operative_procedures_opcs4") %>%
+    split_columns("operative_procedures_opcs3")
 ```
+
 # Look at the data structure again
 
 # Specify your ICD10 codes:
@@ -96,7 +99,7 @@ icd9_codes <- icd10to9 %>%
 opcs4_codes <- c("K40", "K41", "K42", "K43", "K44", "K45", "K46", "K48", "K49", "K50", "K75")
 ```
 
-# Function to process codes
+# Function to process ICD and OPCS codes
 
 ```{r}
 process_codes <- function(codes = icd10_codes, prefix ="diagnoses_icd10", date_prefix = "date_of_first_in_patient_diagnosis_icd10", row_range) {
@@ -152,6 +155,5 @@ ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, op
   ) %>%
   arrange(participant_id)  # Final sorting by participant_id
 
-write_csv(ascvd_col, "cvd_obesity_diabetes_ukbrap/data/ascvd_col.csv"
+write_csv(ascvd_col, "cvd_obesity_diabetes_ukbrap/data/ascvd_col.csv")
 ```
-
