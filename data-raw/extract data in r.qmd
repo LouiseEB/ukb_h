@@ -80,11 +80,11 @@ reactable::reactable(basic_datadict, searchable = TRUE)
 
 # Select variables to extract
 
-Variables to extract can be found in the above searchable table and in the [UK Biobank Showcase](#0) or the cohort browser on DNAnexus. Once you find a variable of interest, paste the name in the code block below. str_detect() matches the provided string in the selected column by regex. This means that if you write ("Sex", title) you get all columns matching that string in the title column and if you only want the actual Sex column, you instead write "Sex\$". str_detect() is case sensitive with the option to add (?i) as a prefix in the pattern (example: str_detect(title, "(?i)Age at recruitment"). If you want a specific column from the main data, it is preferable to match the field name from the name column, for example 41270 for Diagnoses ICD10.
+Variables to extract can be found in the above searchable table and in the [UK Biobank Showcase](#0) or the cohort browser on DNAnexus. Once you find a variable of interest, paste the name in the code block below. str_detect() matches the provided string in the selected column by regex. This means that if you write ("Sex", title) you get all columns matching that string in the title column and if you only want the actual Sex column, you instead write "\^Sex\$". str_detect() is case sensitive with the option to add (?i) as a prefix in the pattern (example: str_detect(title, "(?i)Reason lost to follow-up"). If you want a specific column from the main data, it is preferable to match the field name from the name column, for example 41270 for Diagnoses ICD10.
 
 ```{r}
 filtered_dict <- datadict %>%
-  filter(str_detect(title, "Age at recruitment") |
+  filter(str_detect(title, "Age when at") |
           str_detect(title, "^Sex$") |
           str_detect(title, "Reason lost to follow-up") |
           str_detect(title, "Date lost to follow-up") |
@@ -95,7 +95,7 @@ filtered_dict <- datadict %>%
           str_detect(title, "^Cholesterol \\| Instance\\s*\\d*$") |
           str_detect(title, "^HDL cholesterol \\| Instance\\s*\\d*$") |
           str_detect(title, "^Glucose \\| Instance\\s*\\d*$") |
-          str_detect(title, "^Glycated haemoglobin \(HbA1c\) \| Instance \d+$") |
+          str_detect(title, "^Glycated haemoglobin \\(HbA1c\\) \\| Instance \\d+$") |
           str_detect(title, "^LDL direct \\| Instance\\s*\\d*$") |
           str_detect(title, "^Lipoprotein A \\| Instance\\s*\\d*$") |
           str_detect(title, "^Triglycerides \\| Instance\\s*\\d*$") |
