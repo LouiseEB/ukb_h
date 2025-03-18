@@ -17,9 +17,9 @@ library(purrr)
 library(lubridate)
 library(stringr)
 
-system("dx download table-exporter_2025-03-17_09-32-33_data.csv", intern = TRUE) 
+system("dx download table-exporter_2025-03-18_09-45-45_data.csv", intern = TRUE) 
 
-dataset <- read.csv(here::here("table-exporter_2025-03-17_09-32-33_data.csv"))
+dataset <- read.csv(here::here("data-raw", "table-exporter_2025-03-18_09-45-45_data.csv"))
 ```
 
 # Clean column names
@@ -90,7 +90,7 @@ Using a table found on <https://www.nber.org/research/data/icd-9-cm-and-icd-10-c
 ```{r}
 icd10to9 <- read.csv("https://data.nber.org/gem/icd10cmtoicd9gem.csv") %>%
  mutate(across(everything(), ~ str_replace_all(., '"', ''))) %>%
-  select(icd10 = X.icd10cm, icd9 = X..icd9cm..) %>%
+  select(icd10 = icd10cm, icd9 = icd9cm) %>%
   mutate(icd10 = str_replace(icd10, "(\\d{2})(\\D.*)", "\\1.\\2"),
          icd10 = str_replace(icd10, "(\\d{2})(\\d.*)", "\\1.\\2"))
 
@@ -148,9 +148,11 @@ opcs4_batch1 <- process_codes(codes = opcs4_codes, prefix = "operative_procedure
 ```
 
 # Create diagnosis
-
+Choose either to run all above or test out with only one.
 ```{r}
-ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, opcs4_batch1) %>%
+# ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, opcs4_batch1) %>%
+
+ascvd_col <- icd10_batch1 %>% 
   group_by(participant_id) %>%
   arrange(date) %>%  # Ensure data is sorted by date for each participant
   slice_head(n = 1) %>%  # Keep only the first row per participant (earliest date)
@@ -161,38 +163,34 @@ ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, op
   ) %>%
   arrange(participant_id)  # Final sorting by participant_id
 
-# write_csv(ascvd_col, "cvd_obesity_diabetes_ukbrap/data/ascvd_col.csv")
 ```
-
-# Upload to DNAnexus
-
-dx upload ascvd_col maybe not necessary
 
 # Join ascvd_col to the main data and fill in the missing information
 
 ```{r}
 
 ascvd_col <- ascvd_col %>% 
-  mutate(date = lubridate::as_date(date)) %>% 
+  mutate(date = as_date(date)) %>% 
   rename(ascvd_date =date,
          ascvd_array_index = array_index,
          ascvd_dia_proc = dia_proc)
 ```
 
 Censoring date set to 2022-05-31:
+
 ```{r}
 
 dataset_ascvd <- dataset %>% 
   select(-starts_with("diagnoses"), -starts_with("date_of_first"), -starts_with("operative_procedures")) %>%
   left_join(ascvd_col) %>% 
-  mutate(date_lost_to_follow_up = lubridate::as_date(date_lost_to_follow_up),
+  mutate(date_lost_to_follow_up = as_date(date_lost_to_follow_up),
     ascvd = case_when(
     is.na(ascvd) ~ 0,
     ascvd_date > as_date("2022-05-31") ~ 0,
     ascvd == 1 & as_date(date_lost_to_follow_up)<ascvd_date ~ 0,
     TRUE ~ ascvd),
     ascvd_date = case_when(
-      ascvd==0 ~ lubridate::as_date("2022-05-31"),
+      ascvd==0 ~ as_date("2022-05-31"),
       is.na(ascvd_date) & ascvd == 1 ~ NA,
       TRUE ~ ascvd_date
     ),
@@ -203,3 +201,13 @@ dataset_ascvd <- dataset %>%
     )
   )
 ```
+
+#Upload to DNAnexus
+
+```{r}
+write.csv(dataset_ascvd, "dataset_ascvd.csv")
+
+system("dx upload dataset_ascvd.csv") 
+
+```
+
