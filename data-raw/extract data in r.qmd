@@ -84,33 +84,30 @@ Variables to extract can be found in the above searchable table and in the [UK B
 
 ```{r}
 filtered_dict <- datadict %>%
-  filter(
-    str_detect(title, "Age at recruitment") |
-      str_detect(title, "^Sex$") |
-      str_detect(title, "Reason lost to follow-up") |
-      str_detect(title, "Date lost to follow-up") |
-      str_detect(title, "Date of attending assessment centre") |
-      str_detect(title, "IPAQ") |
-      str_detect(title, "Medication for cholesterol") |
-      str_detect(title, "Body mass index") |
-      str_detect(title, "^C-reactive protein$") |
-      str_detect(title, "^Cholesterol \\| Instance\\s*\\d*$") |
-      str_detect(title, "^HDL cholesterol \\| Instance\\s*\\d*$") |
-      str_detect(title, "^Glucose \\| Instance\\s*\\d*$") |
-      str_detect(title, "^Glycated haemoglobin \\| Instance\\s*\\d*$") |
-      str_detect(title, "^LDL direct \\| Instance\\s*\\d*$") |
-      str_detect(title, "^Lipoprotein A \\| Instance\\s*\\d*$") |
-      str_detect(title, "^Triglycerides \\| Instance\\s*\\d*$") |
-      str_detect(title, "Underlying (primary) cause of death") |
-      str_detect(title, "Contributory (secondary) cause of death") |
-      str_detect(name, "p41270") | #Diagnoses icd10
-      str_detect(name, "p41271") | #Diagnoses icd9
-      str_detect(name, "p41280") | #Date of first in-patient diagnosis icd10
-      str_detect(name, "p41281") | #Date of first in-patient diagnosis icd9
-      str_detect(name, "p41272") | #Operative procedures OPCS4
-      str_detect(name, "p41282") | #Date of operative procedures OPCS4
-      str_detect(name, "p41273") | #Operative procedures OPCS3
-      str_detect(name, "p41283") #Date of operative procedures OPCS3
+  filter(str_detect(title, "Age at recruitment") |
+          str_detect(title, "^Sex$") |
+          str_detect(title, "Reason lost to follow-up") |
+          str_detect(title, "Date lost to follow-up") |
+          str_detect(title, "Date of attending assessment centre") |
+          str_detect(title, "IPAQ") |
+          str_detect(title, "Medication for cholesterol") |
+          str_detect(title, "Body mass index") |
+          str_detect(title, "^Cholesterol \\| Instance\\s*\\d*$") |
+          str_detect(title, "^HDL cholesterol \\| Instance\\s*\\d*$") |
+          str_detect(title, "^Glucose \\| Instance\\s*\\d*$") |
+          str_detect(title, "^Glycated haemoglobin \(HbA1c\) \| Instance \d+$") |
+          str_detect(title, "^LDL direct \\| Instance\\s*\\d*$") |
+          str_detect(title, "^Lipoprotein A \\| Instance\\s*\\d*$") |
+          str_detect(title, "^Triglycerides \\| Instance\\s*\\d*$") |
+          str_detect(name, "p40000") | #date of death
+          str_detect(name, "p41270") | #Diagnoses icd10
+          str_detect(name, "p41271") | #Diagnoses icd9
+          str_detect(name, "p41280") | #Date of first in-patient diagnosis icd10
+          str_detect(name, "p41281") | #Date of first in-patient diagnosis icd9
+          str_detect(name, "p41272") | #Operative procedures OPCS4
+          str_detect(name, "p41282") | #Date of operative procedures OPCS4
+          str_detect(name, "p41273") | #Operative procedures OPCS3
+          str_detect(name,  "p41283") #Date of operative procedures OPCS3
   )  %>% arrange(title)
 
 field_list <- filtered_dict %>%

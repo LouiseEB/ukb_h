@@ -189,6 +189,7 @@ dataset_ascvd <- dataset %>%
     ascvd = case_when(
     is.na(ascvd) ~ 0,
     ascvd_date > as_date("2022-05-31") ~ 0,
+    ascvd == 1 & as_date(date_lost_to_follow_up)<ascvd_date ~ 0,
     TRUE ~ ascvd),
     ascvd_date = case_when(
       ascvd==0 ~ lubridate::as_date("2022-05-31"),
