@@ -68,7 +68,7 @@ dataset <- dataset %>%
     split_columns("operative_procedures_opcs3")
 ```
 
-# Look at the data structure again
+Look at the data structure again
 
 # Specify your ICD10 codes:
 
