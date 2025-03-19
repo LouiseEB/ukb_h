@@ -113,26 +113,32 @@ opcs4_codes <- c("K40", "K41", "K42", "K43", "K44", "K45", "K46", "K48", "K49", 
 # Function to process ICD and OPCS codes
 
 ```{r}
-process_codes <- function(codes = icd10_codes, prefix ="diagnoses_icd10", date_prefix = "date_of_first_in_patient_diagnosis_icd10", row_range) {
-  
+process_codes <- function(
+    codes = icd10_codes, 
+    prefix = "diagnoses_icd10", 
+    date_prefix = "date_of_first_in_patient_diagnosis_icd10", 
+    row_range, 
+    new_col_name = "ascvd"  # New argument for dynamic column name
+) {
   dataset[row_range, ] %>%
     select(participant_id, starts_with(prefix), starts_with(date_prefix)) %>%
     pivot_longer(
       cols = -participant_id,
       names_to = c(".value", "array_index"),
       names_pattern = "(.*)_array_(\\d+)"
-    ) %>% filter(!is.na(!!sym(prefix)), !!sym(prefix) != "") %>% 
+    ) %>%
     filter(!is.na(!!sym(prefix)), !!sym(prefix) != "") %>%
-    mutate(ascvd = case_when(
-      map_lgl(!!sym(prefix), ~ any(str_starts(.x, codes))) ~ 1,  # Check if any code matches
-      TRUE ~ 0
-    )) %>% 
-    filter(ascvd == 1) %>% 
+    mutate(
+      !!sym(new_col_name) := case_when(
+        map_lgl(!!sym(prefix), ~ any(str_starts(.x, codes))) ~ 1,  # Check if any code matches
+        TRUE ~ 0
+      )
+    ) %>%
+    filter(!!sym(new_col_name) == 1) %>%
     rename(
       dia_proc = !!sym(prefix),  # Rename diagnoses_icd10 to diagnoses_procedures
-      date = !!sym(paste0(date_prefix))     # Rename date columns to 'date'
+      date = !!sym(paste0(date_prefix))  # Rename date columns to 'date'
     )
-  
 }
 ```
 
