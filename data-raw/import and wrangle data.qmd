@@ -81,6 +81,11 @@ icd10_codes <- c("DE10.5", "DE11.5", "DE13.5", "DE14.5", "DG45.0", "DG45.1", "DG
 
 icd10_codes <-  str_replace(icd10_codes, "^D", "")
 
+
+# regex pattern to match in the icd10 to icd9 table below
+pattern <- paste0("^(", paste(icd10_codes, collapse = "|"), ")")
+
+
 ```
 
 # Translate into ICD9 codes
@@ -95,7 +100,7 @@ icd10to9 <- read.csv("https://data.nber.org/gem/icd10cmtoicd9gem.csv") %>%
          icd10 = str_replace(icd10, "(\\d{2})(\\d.*)", "\\1.\\2"))
 
 icd9_codes <- icd10to9 %>%
-  filter(icd10 %in% icd10_codes) %>%
+  filter(str_detect(icd10, pattern)) %>%
   pull(icd9)
 ```
 
@@ -148,7 +153,9 @@ opcs4_batch1 <- process_codes(codes = opcs4_codes, prefix = "operative_procedure
 ```
 
 # Create diagnosis
+
 Choose either to run all above or test out with only one.
+
 ```{r}
 # ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, opcs4_batch1) %>%
 
@@ -210,4 +217,3 @@ write.csv(dataset_ascvd, "dataset_ascvd.csv")
 system("dx upload dataset_ascvd.csv") 
 
 ```
-
