@@ -170,14 +170,16 @@ Choose either to run all above or test out with only one.
 
 ascvd_col <- icd10_batch1 %>% 
   group_by(participant_id) %>%
-  arrange(date) %>%  # Ensure data is sorted by date for each participant
-  slice_head(n = 1) %>%  # Keep only the first row per participant (earliest date)
-  ungroup() %>%
-  mutate(
-    ascvd_source = dia_proc,  # Set ascvd_source to the diagnosis/procedure for the earliest date
-    ascvd = 1  # Set ascvd to 1 for all these rows
-  ) %>%
-  arrange(participant_id)  # Final sorting by participant_id
+    arrange(date) %>%  # Ensure data is sorted by date for each participant
+    slice_head(n = 1) %>%  # Keep only the first row per participant (earliest date)
+    ungroup() %>%
+    mutate(date = as_date(date)) %>%
+    rename(
+        ascvd_date = date,
+        ascvd_array_index = array_index,
+        ascvd_source = dia_proc
+    ) %>%
+    arrange(participant_id)  # Final sorting by participant_id
 
 ```
 
