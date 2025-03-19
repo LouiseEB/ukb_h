@@ -101,7 +101,8 @@ icd10to9 <- read.csv("https://data.nber.org/gem/icd10cmtoicd9gem.csv") %>%
 
 icd9_codes <- icd10to9 %>%
   filter(str_detect(icd10, pattern)) %>%
-  pull(icd9)
+  pull(icd9) %>% 
+    unique()
 ```
 
 # Specify operative procedure codes
@@ -143,6 +144,8 @@ process_codes <- function(
 ```
 
 # Batch process
+
+Depending on the number of diagnosis codes and the number of individuals with a matching code, it might be necessary to split the batches even further.
 
 ```{r}
 
