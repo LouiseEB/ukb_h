@@ -143,11 +143,11 @@ This can of course also be done for opcs3 codes. This is however not relevant fo
 
 ```{r}
 process_codes <- function(
+    new_col_name = "ascvd",  # New argument for dynamic column name
     codes = icd10_codes, 
     prefix = "diagnoses_icd10", 
     date_prefix = "date_of_first_in_patient_diagnosis_icd10", 
-    row_range, 
-    new_col_name = "ascvd"  # New argument for dynamic column name
+    row_range 
 ) {
   dataset[row_range, ] %>%
     select(participant_id, starts_with(prefix), starts_with(date_prefix)) %>%
@@ -167,7 +167,8 @@ process_codes <- function(
     rename(
       dia_proc = !!sym(prefix),  # Rename diagnoses_icd10 to diagnoses_procedures
       date = !!sym(paste0(date_prefix))  # Rename date columns to 'date'
-    )
+    ) %>% 
+    mutate(date = as_date(date))
 }
 ```
 
@@ -176,17 +177,23 @@ process_codes <- function(
 Depending on the number of diagnosis codes and the number of individuals with a matching code, it might be necessary to split the batches even further.
 
 ```{r}
+icd10_batch1 <- process_codes(new_col_name = "ascvd", codes = icd10_codes, prefix = "diagnoses_icd10", row_range = 1:200000)
 
-icd10_batch1 <- process_codes(codes = icd10_codes, prefix = "diagnoses_icd10", row_range = 1:200000)
+icd10_batch2 <- process_codes(new_col_name = "ascvd", codes = icd10_codes, prefix = "diagnoses_icd10", row_range = 200001:400000)
 
-icd10_batch2 <- process_codes(codes = icd10_codes, prefix = "diagnoses_icd10", row_range = 200001:400000)
+icd10_batch3 <- process_codes(new_col_name = "ascvd", codes = icd10_codes, prefix = "diagnoses_icd10", row_range = 400001:502129)
 
-icd10_batch3 <- process_codes(codes = icd10_codes, prefix = "diagnoses_icd10", row_range = 400001:502129)
+icd9_batch1 <- process_codes(new_col_name = "ascvd", codes = icd9_codes, prefix = "diagnoses_icd9", row_range = 1:200000)
+#
+icd9_batch2 <- process_codes(new_col_name = "ascvd", codes = icd9_codes, prefix = "diagnoses_icd9", row_range = 200001:400000)
 
-icd9_batch1 <- process_codes(codes = icd9_codes, prefix = "diagnoses_icd9", row_range = 1:502129) 
+icd9_batch3 <- process_codes(new_col_name = "ascvd", codes = icd9_codes, prefix = "diagnoses_icd9", row_range = 400001:502129)
 
-opcs4_batch1 <- process_codes(codes = opcs4_codes, prefix = "operative_procedures_opcs4", row_range = 1:502129 )
+opcs4_batch1 <- process_codes(new_col_name = "ascvd", codes = opcs4_codes, prefix = "operative_procedures_opcs4", row_range = 1:200000 )
 
+opcs4_batch2 <- process_codes(new_col_name = "ascvd", codes = opcs4_codes, prefix = "operative_procedures_opcs4", row_range = 200001:400000)
+
+opcs4_batch3 <- process_codes(new_col_name = "ascvd", codes = opcs4_codes, prefix = "operative_procedures_opcs4", row_range = 400001:502129)
 ```
 
 # Create diagnosis
@@ -194,7 +201,9 @@ opcs4_batch1 <- process_codes(codes = opcs4_codes, prefix = "operative_procedure
 Choose either to run all above or test out with only one.
 
 ```{r}
-# ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3, icd9_batch1, opcs4_batch1) %>%
+# ascvd_col <- bind_rows(icd10_batch1, icd10_batch2, icd10_batch3,
+#                        icd9_batch1, icd9_batch2, icd9_batch3,
+#                        opcs4_batch1, opcs4_batch2, opcs4_batch3) %>%
 
 ascvd_col <- icd10_batch1 %>% 
   group_by(participant_id) %>%
