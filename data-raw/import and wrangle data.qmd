@@ -9,7 +9,7 @@ editor: visual
 Before running this, wipe your environment clean with the broom to the right. Find the name of your exported file on DNAnexus in your project.
 
 ```{r}
-install.packages("here", "dplyr", "tidyr", "purrr", "stringr", "lubridate", "janitor")
+install.packages(c("here", "dplyr", "tidyr", "purrr", "stringr", "lubridate", "janitor"))
 
 library(dplyr)
 library(tidyr)
@@ -36,6 +36,9 @@ dataset %>% select(starts_with("diagnoses_icd10"), starts_with("date_of_first_in
 ```
 
 # Function to split icd and operative procedure columns
+
+The function below is based on code provided by a UKB data analyst:\
+<https://community.ukbiobank.ac.uk/hc/en-gb/community/posts/23567724254621-If-I-want-to-obtain-the-first-diagnosis-date-of-patients-with-ICD-code-K70-0-Alcoholic-fatty-liver-from-the-Summary-Diagnoses-which-online-tool-should-I-use>
 
 ```{r}
 split_columns <- function(data, icd_col_name) {
@@ -68,9 +71,29 @@ dataset <- dataset %>%
     split_columns("operative_procedures_opcs3")
 ```
 
-Look at the data structure again
+Look at the data structure again:
 
-# Specify your ICD10 codes:
+```{r}
+dataset %>% select(starts_with("diagnoses_icd10"), starts_with("date_of_first_in_patient_diagnosis_icd10")) %>% head()
+```
+
+You have now successfully split you ICD and operative procedure columns and can now save the split dataset to DNAnexus for further processing in your desired program:
+
+```{r}
+
+# write.csv(dataset, "dataset_split.csv")
+#  
+# system("dx upload dataset_split.csv") 
+
+```
+
+Or you can continue to play with creating your endpoint:
+
+# Specify your ICD10 codes
+
+DISCLAIMER: This next section is entirely based on the code for my personal project. It is not meant to be a recipe for how to create an endpoint but only an example of a way to do it. Please always consider your own course of action in regard to selecting relevant ICD and procedure codes, dates and censoring criteria.
+
+In this example we will create an ascvd endpoint based on the ICD10 codes that I used to makes a similar endpoint in CGPS data:
 
 ```{r}
 icd10_codes <- c("DE10.5", "DE11.5", "DE13.5", "DE14.5", "DG45.0", "DG45.1", "DG45.3", "DG45.4", "DG45.8", "DG45.9", "DI20", "DI21",
@@ -79,6 +102,7 @@ icd10_codes <- c("DE10.5", "DE11.5", "DE13.5", "DE14.5", "DG45.0", "DG45.1", "DG
                  "I20.9", "I21.0", "I21.1", "I21.2", "I21.3", "I21.4", "I21.9", "I24.8", "I24.9", "I25.0", "I25.1", "I25.5", "I25.8",
                  "I25.9", "I60.6", "I60.9", "I63.4", "I63.6", "I63.8", "I63.9", "I64", "I70.2")
 
+#remove the D
 icd10_codes <-  str_replace(icd10_codes, "^D", "")
 
 
@@ -90,14 +114,16 @@ pattern <- paste0("^(", paste(icd10_codes, collapse = "|"), ")")
 
 # Translate into ICD9 codes
 
-Using a table found on <https://www.nber.org/research/data/icd-9-cm-and-icd-10-cm-and-icd-10-pcs-crosswalk-or-general-equivalence-mappings>
+Using a table found on <https://www.nber.org/research/data/icd-9-cm-and-icd-10-cm-and-icd-10-pcs-crosswalk-or-general-equivalence-mappings>.
+
+The UK Biobank also provides a conversion table: <https://biobank.ndph.ox.ac.uk/ukb/coding.cgi?id=1836>
+
+This is however only a partial mapping, that does not take into account subdiagnoses of ICD10 codes.
 
 ```{r}
 icd10to9 <- read.csv("https://data.nber.org/gem/icd10cmtoicd9gem.csv") %>%
- mutate(across(everything(), ~ str_replace_all(., '"', ''))) %>%
-  select(icd10 = icd10cm, icd9 = icd9cm) %>%
-  mutate(icd10 = str_replace(icd10, "(\\d{2})(\\D.*)", "\\1.\\2"),
-         icd10 = str_replace(icd10, "(\\d{2})(\\d.*)", "\\1.\\2"))
+  select(icd10 = icd10cm, icd9 = icd9cm) %>% #only select icd10 and 9 columns
+  mutate(icd10 = str_replace(icd10, "(\\d{2})(\\d.*)", "\\1.\\2")) #insert a . after the first two numeric characters to match the style of our data
 
 icd9_codes <- icd10to9 %>%
   filter(str_detect(icd10, pattern)) %>%
@@ -110,6 +136,8 @@ icd9_codes <- icd10to9 %>%
 ```{r}
 opcs4_codes <- c("K40", "K41", "K42", "K43", "K44", "K45", "K46", "K48", "K49", "K50", "K75")
 ```
+
+This can of course also be done for opcs3 codes. This is however not relevant for the ascvd diagnosis we are creating, as there are no events.
 
 # Function to process ICD and OPCS codes
 
